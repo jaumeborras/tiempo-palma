@@ -4,7 +4,7 @@
   "description": "Estación meteorológica - Palma de Mallorca",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#060b14",
   "theme_color": "#060b14",
   "lang": "es",
