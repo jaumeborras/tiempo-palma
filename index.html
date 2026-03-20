@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tiempo Palma">
+  <title>Tiempo · Palma de Mallorca</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #060b14;
+      --card:     #0b1220;
+      --border:   #182235;
+      --cyan:     #00e5ff;
+      --green:    #00f285;
+      --magenta:  #ff2070;
+      --yellow:   #ffd000;
+      --orange:   #ff7020;
+      --purple:   #c084fc;
+      --blue:     #3b82f6;
+      --red:      #ff4040;
+      --text:     #dde6f0;
+      --muted:    #4a6280;
+      --label:    #7a9ab8;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 4px) env(safe-area-inset-bottom, 4px) env(safe-area-inset-left, 4px);
+      gap: 4px;
+    }
+
+    /* ── ROWS ── */
+    .row-top {
+      display: grid;
+      grid-template-columns: 1.1fr 0.85fr 0.85fr 1.6fr;
+      gap: 4px;
+      flex: 2;
+      min-height: 0;
+    }
+    .row-mid {
+      display: grid;
+      grid-template-columns: 0.9fr 0.7fr 1.4fr 1fr 1.4fr;
+      gap: 4px;
+      flex: 1.3;
+      min-height: 0;
+    }
+    .row-bot {
+      flex: 0.7;
+      min-height: 0;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 7px 7px 0 0;
+    }
+    .c-clock::after   { background: var(--cyan); }
+    .c-temp::after    { background: var(--green); }
+    .c-hum::after     { background: var(--cyan); }
+    .c-cam::after     { background: #333; }
+    .c-wind::after    { background: var(--blue); }
+    .c-uv::after      { background: var(--yellow); }
+    .c-sun::after     { background: var(--orange); }
+    .c-pres::after    { background: var(--magenta); }
+    .c-air::after     { background: var(--purple); }
+    .c-hourly::after  { background: var(--border); }
+
+    /* ── LABELS ── */
+    .lbl {
+      font-size: 8.5px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--label);
+    }
+    .lbl-cyan    { color: var(--cyan); }
+    .lbl-green   { color: var(--green); }
+    .lbl-yellow  { color: var(--yellow); }
+    .lbl-orange  { color: var(--orange); }
+    .lbl-magenta { color: var(--magenta); }
+    .lbl-purple  { color: var(--purple); }
+    .lbl-blue    { color: var(--blue); }
+
+    /* ── BIG DIGIT ── */
+    .digit {
+      font-family: 'Orbitron', monospace;
+      line-height: 1;
+      font-weight: 900;
+    }
+    .glow-c { text-shadow: 0 0 12px rgba(0,229,255,.55); }
+    .glow-g { text-shadow: 0 0 12px rgba(0,242,133,.45); }
+    .glow-m { text-shadow: 0 0 12px rgba(255,32,112,.45); }
+
+    /* ──────────────────────────────
+       CLOCK CARD
+    ────────────────────────────── */
+    #clock        { font-size: clamp(30px,5.5vw,54px); color: var(--cyan); }
+    #clock-date   { font-size: 9.5px; color: var(--label); letter-spacing: .8px; margin-top: 2px; text-transform: uppercase; }
+    .clock-state  { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+    #wx-icon      { font-size: 22px; }
+    #wx-desc      { font-size: 13px; font-weight: 700; }
+
+    /* ──────────────────────────────
+       TEMP CARD
+    ────────────────────────────── */
+    #temp         { font-size: clamp(26px,4.8vw,46px); color: var(--green); }
+    #feels        { font-size: 10.5px; color: var(--label); margin-top: 1px; }
+    .temp-range   { display: flex; gap: 8px; font-size: 12px; }
+    #t-max        { color: var(--orange); }
+    #t-min        { color: var(--blue); }
+
+    /* ──────────────────────────────
+       HUMIDITY CARD
+    ────────────────────────────── */
+    #hum          { font-size: clamp(26px,4.8vw,46px); color: var(--cyan); }
+    #rain-prob    { font-size: 11px; color: var(--green); margin-top: 1px; }
+    #rain-mm      { font-size: 11px; color: var(--muted); }
+
+    /* ──────────────────────────────
+       CAMERA CARD
+    ────────────────────────────── */
+    .c-cam {
+      padding: 0;
+      background: #030608;
+    }
+    .cam-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 6px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 3;
+      background: linear-gradient(to bottom, rgba(0,0,0,.7) 0%, transparent 100%);
+    }
+    .cam-dot {
+      width: 7px; height: 7px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100% { opacity:1 } 50% { opacity:.2 } }
+    .cam-name { font-size: 9px; color: #fff; letter-spacing: 1px; }
+    .cam-time { font-family: 'Orbitron', monospace; font-size: 9px; color: #fff; }
+    #cam-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: brightness(.92) contrast(1.05);
+      display: none;
+    }
+    .cam-nosignal {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px, rgba(255,255,255,.015) 2px, rgba(255,255,255,.015) 4px
+      );
+    }
+    .cam-nosignal span:first-child { font-size: 22px; opacity: .4; }
+    .cam-nosignal span:last-child  { font-size: 9px; color: var(--muted); letter-spacing: 2px; }
+
+    /* ──────────────────────────────
+       WIND CARD
+    ────────────────────────────── */
+    #wind-speed   { font-size: clamp(22px,4vw,38px); color: var(--blue); }
+    #wind-unit    { font-size: 10px; color: var(--label); margin-top: -2px; }
+    #wind-dir     { font-size: 12px; color: var(--text); margin-top: 2px; }
+
+    /* ──────────────────────────────
+       UV CARD
+    ────────────────────────────── */
+    #uv-val       { font-size: clamp(22px,4vw,38px); color: var(--yellow); }
+    #uv-desc      { font-size: 10px; color: var(--label); margin-top: 2px; }
+
+    /* ──────────────────────────────
+       SUN / MOON CARD
+    ────────────────────────────── */
+    .sun-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+    .sun-t   { font-family: 'Orbitron', monospace; font-size: 15px; font-weight: 700; }
+    .rise    { color: var(--orange); }
+    .set     { color: var(--purple); }
+    .sep     { color: var(--muted); margin: 0 3px; }
+    .moon-row { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+    #moon-icon { font-size: 17px; }
+    #moon-name { font-size: 10px; color: var(--label); }
+    #daylight  { font-size: 9.5px; color: var(--muted); margin-top: 3px; }
+
+    /* ──────────────────────────────
+       PRESSURE CARD
+    ────────────────────────────── */
+    .pres-row    { display: flex; align-items: baseline; gap: 4px; }
+    #pres-val    { font-size: clamp(20px,3.8vw,36px); color: var(--magenta); }
+    #pres-unit   { font-size: 10px; color: var(--label); }
+    .pres-bar    { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+    #pres-fill   { height: 100%; background: var(--magenta); border-radius: 2px; transition: width .8s; }
+    #pres-state  { font-size: 9.5px; color: var(--label); margin-top: 3px; }
+
+    /* ──────────────────────────────
+       AIR QUALITY CARD
+    ────────────────────────────── */
+    .air-main    { display: flex; align-items: baseline; gap: 5px; }
+    #air-ica     { font-size: clamp(20px,3.8vw,36px); color: var(--purple); }
+    #air-lbl-ica { font-size: 8px; color: var(--label); }
+    #air-state   { font-size: 12px; font-weight: 700; color: var(--purple); }
+    .air-subs    { display: flex; gap: 10px; margin-top: 4px; }
+    .air-sub     { display: flex; flex-direction: column; }
+    .air-sv      { font-size: 14px; font-weight: 700; }
+    .air-sl      { font-size: 8.5px; color: var(--label); line-height: 1.3; }
+
+    /* ──────────────────────────────
+       HOURLY FORECAST
+    ────────────────────────────── */
+    .c-hourly    { padding: 0 8px; }
+    .hourly-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 4px 0;
+    }
+    .hourly-wrap::-webkit-scrollbar { display: none; }
+    .hi {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      min-width: 40px;
+    }
+    .hi-h    { font-size: 9.5px; color: var(--label); }
+    .hi-ico  { font-size: 17px; }
+    .hi-t    { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--green); font-weight: 700; }
+    .hi-r    { font-size: 8.5px; color: var(--cyan); }
+    .hi-sep  { width: 1px; height: 28px; background: var(--border); flex: 0 0 auto; }
+
+    /* ──────────────────────────────
+       SOURCE BAR
+    ────────────────────────────── */
+    #source {
+      position: fixed;
+      bottom: env(safe-area-inset-bottom, 2px);
+      left: env(safe-area-inset-left, 6px);
+      font-size: 7.5px;
+      color: var(--muted);
+      letter-spacing: .5px;
+      pointer-events: none;
+    }
+
+    /* ──────────────────────────────
+       SPINNER
+    ────────────────────────────── */
+    .spin {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: sp .7s linear infinite;
+      margin: auto;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════ ROW 1 ══════════ -->
+  <div class="row-top">
+
+    <!-- CLOCK -->
+    <div class="card c-clock">
+      <div class="lbl lbl-cyan">● PALMA DE MALLORCA</div>
+      <div class="digit glow-c" id="clock">--:--</div>
+      <div id="clock-date">-- --- ----</div>
+      <div class="clock-state">
+        <span id="wx-icon">⏳</span>
+        <span id="wx-desc">Cargando...</span>
+      </div>
+    </div>
+
+    <!-- TEMP -->
+    <div class="card c-temp">
+      <div class="lbl lbl-green">TEMP. EXT.</div>
+      <div class="digit glow-g" id="temp">--°</div>
+      <div id="feels">Sensación: --°</div>
+      <div class="temp-range">
+        <span id="t-max">↑ --°</span>
+        <span id="t-min">↓ --°</span>
+      </div>
+    </div>
+
+    <!-- HUMIDITY -->
+    <div class="card c-hum">
+      <div class="lbl lbl-cyan">HUMEDAD EXT.</div>
+      <div class="digit" id="hum">--%</div>
+      <div id="rain-prob">--% prob. lluvia</div>
+      <div id="rain-mm">· -- mm</div>
+    </div>
+
+    <!-- CAMERA -->
+    <div class="card c-cam">
+      <div class="cam-overlay">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="cam-dot"></div>
+          <span class="cam-name" id="cam-name">DGT · MALLORCA</span>
+        </div>
+        <span class="cam-time" id="cam-time">--:--</span>
+      </div>
+      <img id="cam-img" src="" alt="">
+      <div class="cam-nosignal" id="cam-nosignal">
+        <span>📷</span>
+        <span>SIN SEÑAL</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ ROW 2 ══════════ -->
+  <div class="row-mid">
+
+    <!-- WIND -->
+    <div class="card c-wind">
+      <div class="lbl lbl-blue">VIENTO</div>
+      <div class="digit" id="wind-speed">--</div>
+      <div id="wind-unit">km/h</div>
+      <div id="wind-dir">-- --°</div>
+    </div>
+
+    <!-- UV -->
+    <div class="card c-uv">
+      <div class="lbl lbl-yellow">ÍNDICE UV</div>
+      <div class="digit" id="uv-val">--</div>
+      <div id="uv-desc">--</div>
+    </div>
+
+    <!-- SUN / MOON -->
+    <div class="card c-sun">
+      <div class="lbl lbl-orange">AMANECER · OCASO</div>
+      <div class="sun-row">
+        <span style="font-size:12px">↑</span>
+        <span class="sun-t rise" id="sunrise">--:--</span>
+        <span class="sep">·</span>
+        <span style="font-size:12px">↓</span>
+        <span class="sun-t set" id="sunset">--:--</span>
+      </div>
+      <div class="moon-row">
+        <span id="moon-icon">🌑</span>
+        <span id="moon-name">--</span>
+      </div>
+      <div id="daylight">-- h -- m de luz</div>
+    </div>
+
+    <!-- PRESSURE -->
+    <div class="card c-pres">
+      <div class="lbl lbl-magenta">PRESIÓN ATM.</div>
+      <div class="pres-row">
+        <span class="digit glow-m" id="pres-val">----</span>
+        <span id="pres-unit">hPa</span>
+      </div>
+      <div class="pres-bar"><div id="pres-fill" style="width:50%"></div></div>
+      <div id="pres-state">--</div>
+    </div>
+
+    <!-- AIR QUALITY -->
+    <div class="card c-air">
+      <div class="lbl lbl-purple">CALIDAD DEL AIRE</div>
+      <div class="air-main">
+        <div class="digit" id="air-ica">--</div>
+        <div>
+          <div id="air-lbl-ica">ICA</div>
+          <div id="air-state">--</div>
+        </div>
+      </div>
+      <div class="air-subs">
+        <div class="air-sub">
+          <span class="air-sv" id="pm25" style="color:var(--cyan)">--</span>
+          <span class="air-sl">PM2.5<br>μg/m³</span>
+        </div>
+        <div class="air-sub">
+          <span class="air-sv" id="ozone" style="color:var(--purple)">--</span>
+          <span class="air-sl">Ozono O₃<br>μg/m³</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ ROW 3 ══════════ -->
+  <div class="row-bot card c-hourly">
+    <div class="hourly-wrap" id="hourly"><div class="spin"></div></div>
+  </div>
+
+  <div id="source">⚡ AEMET · open-meteo</div>
+
+<script>
+// ════════════════════════════════
+//  CONFIG
+// ════════════════════════════════
+const AEMET_KEY = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqYXVtZWJvcnJhczEzQGdtYWlsLmNvbSIsImp0aSI6Ijc1YWQ2MDEyLTk2ODctNDk5Ni04NzQwLTgzMTUyMTM4Y2M4NSIsImlzcyI6IkFFTUVUIiwiaWF0IjoxNzc0MDEyNDY5LCJ1c2VySWQiOiI3NWFkNjAxMi05Njg3LTQ5OTYtODc0MC04MzE1MjEzOGNjODUiLCJyb2xlIjoiIn0.RgtBv6kJhI1QfZugHJlcadyVd_dsUzIKU8sRAG9OmL4';
+const AEMET  = 'https://opendata.aemet.es/opendata/api';
+const STA    = 'B278';    // Palma/Aeropuerto
+const MUNI   = '07040';   // Palma de Mallorca
+const LAT    = 39.5696;
+const LON    = 2.6502;
+
+// DGT cameras - tries each URL until one loads
+const CAMS = [
+  { url: 'https://camaras.dgt.es/foto/IB-PM-1-001.jpg',  name: 'Ma-1 · Palma' },
+  { url: 'https://camaras.dgt.es/foto/IB-PM-19-001.jpg', name: 'Ma-19 · Aeropuerto' },
+  { url: 'https://camaras.dgt.es/foto/IB-PM-13-001.jpg', name: 'Ma-13 · Alcúdia' },
+];
+
+// ════════════════════════════════
+//  CLOCK
+// ════════════════════════════════
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function tick() {
+  const n = new Date();
+  const h = String(n.getHours()).padStart(2,'0');
+  const m = String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+  document.getElementById('cam-time').textContent = `${h}:${m}`;
+  const d = `${DIAS[n.getDay()].toUpperCase()} ${n.getDate()} ${MESES[n.getMonth()].toUpperCase()} ${n.getFullYear()}`;
+  document.getElementById('clock-date').textContent = d;
+}
+setInterval(tick, 1000);
+tick();
+
+// ════════════════════════════════
+//  AEMET — 2-step fetch
+// ════════════════════════════════
+async function aemet(path) {
+  const r1 = await fetch(`${AEMET}${path}?api_key=${AEMET_KEY}`);
+  const j1 = await r1.json();
+  if (!j1.datos) throw new Error(j1.descripcion || 'AEMET sin datos');
+  const r2 = await fetch(j1.datos);
+  return r2.json();
+}
+
+// ════════════════════════════════
+//  SKY CODE → EMOJI
+// ════════════════════════════════
+function skyEmoji(code) {
+  const c = String(code || '11').replace(/n$/,'');
+  const night = String(code).endsWith('n');
+  const m = {
+    '11': night ? '🌙' : '☀️', '12': '🌤️', '13': '⛅',
+    '14': '🌥️', '15': '☁️',  '16': '☁️', '17': '🌤️',
+    '23': '🌦️', '24': '🌧️', '25': '🌧️', '26': '🌧️',
+    '33': '🌨️', '34': '🌨️', '35': '🌨️', '36': '❄️',
+    '43': '🌦️', '44': '🌦️', '45': '⛈️', '46': '⛈️',
+    '51': '🌧️', '52': '🌧️', '53': '🌧️', '54': '🌧️',
+    '61': '🌧️', '62': '🌧️', '71': '⛈️', '72': '⛈️',
+    '81': '🌨️', '82': '❄️',
+  };
+  return m[c] || (night ? '🌙' : '⛅');
+}
+
+// ════════════════════════════════
+//  WIND DIRECTION
+// ════════════════════════════════
+function deg2dir(d) {
+  return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'][Math.round(d/22.5)%16];
+}
+
+// ════════════════════════════════
+//  UV
+// ════════════════════════════════
+function uvInfo(v) {
+  if (v<=2)  return { label:'Bajo',     color:'var(--green)' };
+  if (v<=5)  return { label:'Moderado', color:'var(--yellow)' };
+  if (v<=7)  return { label:'Alto',     color:'var(--orange)' };
+  if (v<=10) return { label:'Muy alto', color:'var(--red)' };
+  return     { label:'Extremo',         color:'#ff00ff' };
+}
+
+// ════════════════════════════════
+//  PRESSURE STATE
+// ════════════════════════════════
+function presState(p) {
+  if (p < 980)  return 'Borrasca · lluvia probable';
+  if (p < 1000) return 'Baja presión · nuboso';
+  if (p < 1020) return 'Presión normal · estable';
+  if (p < 1030) return 'Alta presión · despejado';
+  return 'Muy alta · tiempo seco';
+}
+
+// ════════════════════════════════
+//  AQI
+// ════════════════════════════════
+function aqiInfo(v) {
+  if (v<=25)  return { color:'var(--green)',   label:'Buena' };
+  if (v<=50)  return { color:'var(--yellow)',  label:'Aceptable' };
+  if (v<=75)  return { color:'var(--orange)',  label:'Regular' };
+  if (v<=100) return { color:'var(--red)',     label:'Deficiente' };
+  return       { color:'#ff00ff',             label:'Muy mala' };
+}
+
+// ════════════════════════════════
+//  MOON PHASE
+// ════════════════════════════════
+function moon() {
+  const ref = new Date('2000-01-06T18:14:00Z');
+  const P   = 29.530588;
+  const age = (((Date.now() - ref) / 86400000) % P + P) % P;
+  const phases = [
+    [1.85,  '🌑','Luna nueva'],
+    [5.53,  '🌒','Creciente'],
+    [9.22,  '🌓','Cuarto creciente'],
+    [12.91, '🌔','Gibosa creciente'],
+    [16.61, '🌕','Luna llena'],
+    [20.30, '🌖','Gibosa menguante'],
+    [23.99, '🌗','Cuarto menguante'],
+    [27.68, '🌘','Menguante'],
+    [29.53, '🌑','Luna nueva'],
+  ];
+  for (const [limit, emoji, name] of phases) if (age < limit) return { emoji, name };
+  return { emoji:'🌑', name:'Luna nueva' };
+}
+
+// ════════════════════════════════
+//  SUNRISE / SUNSET (NOAA approx.)
+// ════════════════════════════════
+function sunTimes(date = new Date()) {
+  const lat = LAT * Math.PI / 180;
+  const doy = Math.round((date - new Date(date.getFullYear(),0,0)) / 86400000);
+  const B   = (360/365 * (doy-81)) * Math.PI/180;
+  const eq  = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B);
+  const dec = 23.45 * Math.sin((360*(284+doy)/365)*Math.PI/180) * Math.PI/180;
+  const ha  = Math.acos(-Math.tan(lat)*Math.tan(dec)) * 180/Math.PI;
+  const isDST = date >= new Date(date.getFullYear(),2, 31-((Math.floor(date.getFullYear()*5/4)+4)%7),2)
+             && date <  new Date(date.getFullYear(),9, 31-((Math.floor(date.getFullYear()*5/4)+1)%7),3);
+  const tz  = isDST ? 2 : 1;
+  const lc  = (LON - 15*tz)/15*60;
+  const noon = 720 - eq - lc;
+  const fmt = mins => {
+    const h = Math.floor(mins/60)%24, m = Math.floor(mins%60);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  };
+  return { sunrise: fmt(noon - ha*4), sunset: fmt(noon + ha*4), dlMin: Math.round(ha*8) };
+}
+
+// ════════════════════════════════
+//  UPDATE: OBSERVATIONS
+// ════════════════════════════════
+async function updateObs() {
+  const data = await aemet(`/observacion/convencional/datos/estacion/${STA}`);
+  if (!data?.length) return;
+  const o = data[data.length-1];
+
+  if (o.ta != null) {
+    document.getElementById('temp').textContent = `${Math.round(o.ta)}°`;
+    let feels = o.ta;
+    if (o.vv && o.ta < 10) {
+      const v = o.vv * 3.6;
+      feels = 13.12 + .6215*o.ta - 11.37*Math.pow(v,.16) + .3965*o.ta*Math.pow(v,.16);
+    } else if (o.ta > 27 && o.hr) {
+      feels = -8.78 + 1.611*o.ta + 2.339*o.hr - .146*o.ta*o.hr - .0123*o.ta**2 - .0164*o.hr**2;
+    }
+    document.getElementById('feels').textContent = `Sensación: ${Math.round(feels)}°`;
+  }
+  if (o.hr != null) document.getElementById('hum').textContent = `${o.hr}%`;
+  if (o.vv != null) {
+    document.getElementById('wind-speed').textContent = Math.round(o.vv*3.6);
+    if (o.dv != null) document.getElementById('wind-dir').textContent = `${deg2dir(o.dv)}  ${o.dv}°`;
+  }
+  if (o.pres != null) {
+    document.getElementById('pres-val').textContent = Math.round(o.pres);
+    document.getElementById('pres-fill').style.width = Math.min(100,Math.max(0,((o.pres-960)/(1050-960))*100))+'%';
+    document.getElementById('pres-state').textContent = presState(o.pres);
+  }
+  document.getElementById('source').textContent = `⚡ AEMET ${STA} · ${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`;
+}
+
+// ════════════════════════════════
+//  UPDATE: DAILY FORECAST
+// ════════════════════════════════
+async function updateForecast() {
+  const data = await aemet(`/prediccion/especifica/municipio/diaria/${MUNI}`);
+  if (!data?.[0]) return;
+  const hoy = data[0].prediccion.dia[0];
+  const h   = new Date().getHours();
+
+  // Max/min
+  if (hoy.temperatura) {
+    document.getElementById('t-max').textContent = `↑ ${hoy.temperatura.maxima}°`;
+    document.getElementById('t-min').textContent = `↓ ${hoy.temperatura.minima}°`;
+  }
+
+  // Rain probability
+  const rp = hoy.probPrecipitacion?.find(p => p.periodo==='00-24') || hoy.probPrecipitacion?.[0];
+  if (rp) document.getElementById('rain-prob').textContent = `${rp.value}% prob. lluvia`;
+  const rm = hoy.precipitacion?.find(p => p.periodo==='00-24') || hoy.precipitacion?.[0];
+  if (rm) document.getElementById('rain-mm').textContent = `· ${rm.value||0} mm`;
+
+  // Sky state
+  let sky = hoy.estadoCielo?.find(s => {
+    const [a,b] = (s.periodo||'0-24').split('-').map(Number);
+    return h >= a && h < b;
+  }) || hoy.estadoCielo?.[0];
+  if (sky) {
+    const night = h < 6 || h >= 21;
+    const code  = night ? sky.value+'n' : sky.value;
+    document.getElementById('wx-icon').textContent = skyEmoji(code);
+    document.getElementById('wx-desc').textContent = sky.descripcion || 'Despejado';
+  }
+
+  // UV
+  if (hoy.uvMax != null) {
+    const { label, color } = uvInfo(hoy.uvMax);
+    const el = document.getElementById('uv-val');
+    el.textContent = hoy.uvMax;
+    el.style.color = color;
+    document.getElementById('uv-desc').textContent = label;
+  }
+}
+
+// ════════════════════════════════
+//  UPDATE: HOURLY
+// ════════════════════════════════
+async function updateHourly() {
+  const data = await aemet(`/prediccion/especifica/municipio/horaria/${MUNI}`);
+  if (!data?.[0]) return;
+  const now  = new Date();
+  const hours = [];
+
+  for (const dia of data[0].prediccion.dia) {
+    if (!dia.temperatura) continue;
+    for (const t of dia.temperatura) {
+      const dt = new Date(`${dia.fecha.substring(0,10)}T${String(+t.periodo).padStart(2,'0')}:00:00`);
+      if (dt <= now) continue;
+      const h = +t.periodo;
+      const rp = dia.probPrecipitacion?.find(p => {
+        const [a,b] = (p.periodo||'0-1').split('-').map(Number);
+        return h >= a && h < b;
+      });
+      const sk = dia.estadoCielo?.find(s => {
+        const [a,b] = (s.periodo||'0-1').split('-').map(Number);
+        return h >= a && h < b;
+      }) || dia.estadoCielo?.[0];
+      hours.push({ dt, temp: t.value, rain: rp?.value||'0', sky: sk?.value||'11' });
+    }
+  }
+
+  const items = hours.slice(0,12);
+  const container = document.getElementById('hourly');
+  container.innerHTML = items.map((x, i) => {
+    const night = x.dt.getHours() < 6 || x.dt.getHours() >= 21;
+    const code  = night ? x.sky+'n' : x.sky;
+    const sep   = i < items.length-1 ? '<div class="hi-sep"></div>' : '';
+    return `<div class="hi">
+      <div class="hi-h">${String(x.dt.getHours()).padStart(2,'0')}h</div>
+      <div class="hi-ico">${skyEmoji(code)}</div>
+      <div class="hi-t">${x.temp}°</div>
+      ${+x.rain > 0 ? `<div class="hi-r">💧${x.rain}%</div>` : ''}
+    </div>${sep}`;
+  }).join('');
+}
+
+// ════════════════════════════════
+//  UPDATE: AIR QUALITY (Open-Meteo)
+// ════════════════════════════════
+async function updateAir() {
+  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=pm2_5,ozone,european_aqi`;
+  const d = await (await fetch(url)).json();
+  const c = d.current;
+  const ica = Math.round(c.european_aqi);
+  const { color, label } = aqiInfo(ica);
+  document.getElementById('air-ica').textContent = ica;
+  document.getElementById('air-ica').style.color = color;
+  document.getElementById('air-state').textContent = label;
+  document.getElementById('air-state').style.color = color;
+  document.getElementById('pm25').textContent  = Math.round(c.pm2_5);
+  document.getElementById('ozone').textContent = Math.round(c.ozone);
+}
+
+// ════════════════════════════════
+//  SUN & MOON (static calc)
+// ════════════════════════════════
+function updateSunMoon() {
+  const { sunrise, sunset, dlMin } = sunTimes();
+  document.getElementById('sunrise').textContent = sunrise;
+  document.getElementById('sunset').textContent  = sunset;
+  document.getElementById('daylight').textContent = `${Math.floor(dlMin/60)}h ${String(dlMin%60).padStart(2,'0')}m de luz`;
+  const { emoji, name } = moon();
+  document.getElementById('moon-icon').textContent = emoji;
+  document.getElementById('moon-name').textContent = name;
+}
+
+// ════════════════════════════════
+//  CAMERA
+// ════════════════════════════════
+function loadCam(i=0) {
+  if (i >= CAMS.length) {
+    document.getElementById('cam-nosignal').style.display = 'flex';
+    document.getElementById('cam-img').style.display = 'none';
+    return;
+  }
+  const img = document.getElementById('cam-img');
+  const nosig = document.getElementById('cam-nosignal');
+  img.onerror = () => loadCam(i+1);
+  img.onload  = () => { img.style.display='block'; nosig.style.display='none'; };
+  document.getElementById('cam-name').textContent = `DGT · ${CAMS[i].name}`;
+  img.src = CAMS[i].url + '?cb=' + Date.now();
+}
+
+// ════════════════════════════════
+//  MAIN
+// ════════════════════════════════
+async function refresh() {
+  loadCam();
+  updateSunMoon();
+  await Promise.allSettled([
+    updateObs(),
+    updateForecast(),
+    updateHourly(),
+    updateAir(),
+  ]);
+}
+
+refresh();
+setInterval(refresh, 10 * 60 * 1000);      // datos cada 10 min
+setInterval(() => loadCam(), 30 * 1000);    // cámara cada 30 s
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
